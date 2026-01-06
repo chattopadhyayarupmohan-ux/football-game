@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Football Game Advanced</title>
+<style>
+body { margin:0; background:#145a32; overflow:hidden; font-family:Arial }
+canvas { display:block; margin:auto; background:#2ecc71 }
+#hud {
+    position:absolute; top:10px; left:50%;
+    transform:translateX(-50%);
+    color:white; font-size:22px;
+}
+</style>
+</head>
+<body>
+
+<div id="hud">0 - 0 | Time: 90</div>
+<canvas id="game" width="900" height="500"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+let time = 90, scoreP = 0, scoreAI = 0;
+let stamina = 100;
+
+const keys = {};
+document.addEventListener("keydown", e => keys[e.key]=true);
+document.addEventListener("keyup", e => keys[e.key]=false);
+
+// --------- ENTITIES ----------
+const player = { x:450, y:380, r:15, speed:4 };
+const mate   = { x:520, y:380, r:15, speed:4 };
+
+const ball = { x:450, y:250, r:8, vx:0, vy:0 };
+
+const goal = { x:350, y:0, w:200, h:10 };
+
+const goalkeeper = { x:450, y:40, w:70, h:10, speed:4 };
+
+// 4-3-3 AI formation
+const aiPlayers = [
+    {x:150,y:120},{x:350,y:120},{x:550,y:120},{x:750,y:120},
+    {x:300,y:200},{x:450,y:200},{x:600,y:200},
+    {x:200,y:300},{x:450,y:300},{x:700,y:300}
+];
+
+// --------- MOVEMENT ----------
+function move(p, up, down, left, right) {
+    let s = p.speed;
+    if (keys["Shift"] && stamina > 0) { s = 6; stamina--; }
+    else stamina = Math.min(100, stamina+0.2);
+
+    if (keys[left]) p.x -= s;
+    if (keys[right]) p.x += s;
+    if (keys[up]) p.y -= s;
+    if (keys[down]) p.y += s;
+}
+
+// --------- BALL ----------
+function kick(power) {
+    const dx = ball.x - player.x;
+    const dy = ball.y - player.y;
+    if (Math.hypot(dx,dy) < 25) {
+        ball.vx += dx * power;
+        ball.vy += dy * power;
+    }
+}
+
+function moveBall() {
+    ball.x += ball.vx;
+    ball.y += ball.vy;
+    ball.vx *= 0.97;
+    ball.vy *= 0.97;
+}
+
+// --------- AI ----------
+function aiMove(ai) {
+    const dx = ball.x - ai.x;
+    const dy = ball.y - ai.y;
+    if (Math.hypot(dx,dy) < 180) {
+        ai.x += dx * 0.015;
+        ai.y += dy * 0.015;
+    }
+}
+
+function goalkeeperAI() {
+    if (ball.x < goalkeeper.x) goalkeeper.x -= goalkeeper.speed;
+    if (ball.x > goalkeeper.x + goalkeeper.w) goalkeeper.x += goalkeeper.speed;
+}
+
+// --------- GOALS ----------
+function checkGoal() {
+    if (ball.y < goal.h && ball.x>goal.x && ball.x<goal.x+goal.w) {
+        scoreP++; reset();
+    }
+    if (ball.y > canvas.height) {
+        scoreAI++; reset();
+    }
+}
+
+function reset() {
+    ball.x=450; ball.y=250; ball.vx=ball.vy=0;
+}
+
+// --------- DRAW ----------
+function draw() {
+    ctx.clearRect(0,0,900,500);
+
+    // pitch
+    ctx.strokeStyle="white";
+    ctx.beginPath(); ctx.moveTo(0,250); ctx.lineTo(900,250); ctx.stroke();
+
+    // goal
+    ctx.fillStyle="white";
+    ctx.fillRect(goal.x,goal.y,goal.w,goal.h);
+
+    // goalkeeper
+    ctx.fillStyle="orange";
+    ctx.fillRect(goalkeeper.x,goalkeeper.y,goalkeeper.w,goalkeeper.h);
+
+    // AI players
+    ctx.fillStyle="red";
+    aiPlayers.forEach(ai=>{
+        ctx.beginPath();
+        ctx.arc(ai.x,ai.y,13,0,Math.PI*2);
+        ctx.fill();
+    });
+
+    // players
+    ctx.fillStyle="blue";
+    ctx.beginPath(); ctx.arc(player.x,player.y,player.r,0,Math.PI*2); ctx.fill();
+
+    ctx.fillStyle="cyan";
+    ctx.beginPath(); ctx.arc(mate.x,mate.y,mate.r,0,Math.PI*2); ctx.fill();
+
+    // ball
+    ctx.fillStyle="white";
+    ctx.beginPath();
+    ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);
+    ctx.fill();
+
+    document.getElementById("hud").innerText =
+        `${scoreP} - ${scoreAI} | Time: ${time} | Stamina: ${Math.floor(stamina)}`;
+}
+
+// --------- GAME LOOP ----------
+setInterval(()=>{ if(time>0) time--; },1000);
+
+function gameLoop() {
+    move(player,"ArrowUp","ArrowDown","ArrowLeft","ArrowRight");
+    move(mate,"w","s","a","d");
+
+    if (keys[" "]) kick(0.5);
+    if (keys["p"]) kick(0.3);
+
+    moveBall();
+    aiPlayers.forEach(aiMove);
+    goalkeeperAI();
+    checkGoal();
+    draw();
+
+    requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
+</script>
+</body>
+</html>
